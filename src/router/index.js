@@ -1,12 +1,9 @@
 import Vue from 'vue'
 import VueRouter from 'vue-router'
 
-import PhonologyEditor from '../views/PhonologyEditor.vue'
-
 import Phonology from '../views/Phonology.vue'
 import Converter from '../views/Converter.vue'
 import Phrasebook from '../views/Phrasebook.vue'
-
 import Home from '../views/Home.vue'
 
 Vue.use(VueRouter)
@@ -18,22 +15,17 @@ const routes = [
     component: Home
   },
   {
-    path: '/editor/phonology/',
-    name: 'PhonologyEditor',
-    component: PhonologyEditor
-  },
-  {
-    path: '/phonology/',
+    path: '/phonology/:lang',
     name: 'Phonology',
     component: Phonology
   },
   {
-    path: '/converter/',
+    path: '/converter/:lang',
     name: 'Converter',
     component: Converter
   },
   {
-    path: '/phrasebook/',
+    path: '/phrasebook/:lang',
     name: 'Phrasebook',
     component: Phrasebook
   },
@@ -45,6 +37,10 @@ const routes = [
   },
 ]
 
-const router = new VueRouter({ routes })
+const router = new VueRouter({
+  // mode: 'history',
+  base: process.env.BASE_URL,
+  routes
+})
 
 export default router
