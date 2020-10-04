@@ -1,30 +1,29 @@
 <template>
-  <div class="section" v-if="phonemes && lects">
+  <div class="section" v-if="phonemes">
     <div class="panel scroll">
-      <QueryList :tags="lects" @query="lectQuery = $event" />
-      <PhoneticTable
-        :selected="selected"
-        :phonemes="vowels"
-        :featureQuery="featureQuery"
-        :lectQuery="lectQuery"
-        @phoneme="select($event)"
+      <ChipsQuery @query="lectQuery = $event" :items="lects" itemKey="name" />
+      <InputQuery
+        placeholder="e.g. voiced -velar"
+        @query="featureQuery = $event"
       />
-      <PhoneticTable
-        :selected="selected"
-        :phonemes="consonants"
-        :featureQuery="featureQuery"
-        :lectQuery="lectQuery"
-        @phoneme="select($event)"
-      />
-      <QueryInput @query="featureQuery = $event" />
+      <div class="panel" :key="t" v-for="[t, n] in categories">
+        <h3>{{ n }}</h3>
+        <PhoneticTable
+          v-model="phoneme"
+          :filter="t"
+          :featureQuery="featureQuery"
+          :lectQuery="lectQuery"
+          :phonemes="phonemes"
+        />
+      </div>
     </div>
-    <PhonemeDetails :phoneme="phonemes[selected]" />
+    <PhonemeDetails :phoneme="phoneme" />
   </div>
 </template>
 
 <script>
-import QueryList from "@/components/QueryList";
-import QueryInput from "@/components/QueryInput";
+import ChipsQuery from "@/components/ChipsQuery";
+import InputQuery from "@/components/InputQuery";
 import PhoneticTable from "@/components/PhoneticTable";
 import PhonemeDetails from "@/components/PhonemeDetails";
 
@@ -33,41 +32,36 @@ export default {
   components: {
     PhoneticTable,
     PhonemeDetails,
-    QueryList,
-    QueryInput
+    ChipsQuery,
+    InputQuery,
   },
   data() {
     return {
+      categories: [
+        ["vowel", "Vowels"],
+        ["consonant", "Consonants"],
+      ],
+      phoneme: null,
       lectQuery: {},
-      featureQuery: {}
+      featureQuery: {},
     };
   },
   computed: {
-    selected() {
-      let index = this.$route.query.phoneme ?? 0;
-      return index < this.phonemes.length ? index : 0;
+    lects() {
+      return this.$store.state.lects;
     },
     phonemes() {
-      return this.$store.state.phonology;
+      return this.$store.state.phonemes;
     },
-    lects() {
-      return this.$store.getters.languageInfo?.lects;
-    },
-    vowels() {
-      return this.categorize("vowel");
-    },
-    consonants() {
-      return this.categorize("consonant");
-    }
   },
-  methods: {
-    select(i) {
-      if (this.selected !== i) this.$router.replace({ query: { phoneme: i } });
+  watch: {
+    phonemes: {
+      handler() {
+        this.phoneme = this.phonemes[0];
+      },
+      immediate: true,
     },
-    categorize(category) {
-      return this.phonemes.filter(p => p.features.includes(category));
-    }
-  }
+  },
 };
 </script>
 

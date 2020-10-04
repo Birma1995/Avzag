@@ -1,13 +1,13 @@
 <template>
-  <div id="root" :class="{narrow: phonemes.length <= 12}" class="panel-horizontal-dense wrap">
+  <div id="root" :class="{ narrow }" class="panel-horizontal-dense scroll wrap">
     <PhoneticItem
-      @click.native="$emit('phoneme', phn.i)"
-      :selected="selected==phn.i"
+      @click.native="$emit('select', p)"
+      :selected="phoneme == p"
       :faded="!fitting[i]"
-      :ipa="phn.ipa"
+      :ipa="p.ipa"
       :str="graphemes[i]"
       :key="i"
-      v-for="(phn, i) in phonemes"
+      v-for="(p, i) in filtered"
     />
   </div>
 </template>
@@ -20,31 +20,49 @@ export default {
   components: {
     PhoneticItem,
   },
-  props: ["selected", "lectQuery", "featureQuery", "phonemes"],
+  props: ["phoneme", "filter", "lectQuery", "featureQuery", "phonemes"],
+  model: {
+    prop: "phoneme",
+    event: "select",
+  },
   methods: {
     pass(tags, query) {
       for (const [tag, mode] of Object.entries(query)) {
-        if (mode !== tags.includes(tag)) return false;
+        if (mode != tags.includes(tag)) return false;
       }
       return true;
     },
   },
   computed: {
+    filtered() {
+      return this.filter
+        ? this.phonemes.filter((p) => p.tags.includes(this.filter))
+        : this.phonemes;
+    },
     fitting() {
-      return this.phonemes.map(
+      return this.filtered.map(
         (p) =>
-          this.pass(Object.keys(p.uses), this.lectQuery) &&
-          this.pass(p.features, this.featureQuery)
+          this.pass(Object.keys(p.lects), this.lectQuery) &&
+          this.pass(p.tags, this.featureQuery)
       );
     },
     singleLect() {
-      let lects = [];
-      for (const [lect, mode] of Object.entries(this.lectQuery))
-        if (mode) lects.push(lect);
-      return lects.length === 1 ? lects[0] : undefined;
+      let lect = null;
+      for (const l in this.lectQuery)
+        if (this.lectQuery[l] > 0)
+          if (!lect) lect = l;
+          else return;
+      return lect;
     },
     graphemes() {
-      return this.phonemes.map((p) => p.uses[this.singleLect]?.[0].grapheme);
+      return this.singleLect
+        ? this.filtered.map(
+            (p) => p.lects[this.singleLect]?.samples[0]?.grapheme
+          )
+        : [];
+    },
+    narrow() {
+      return this.filtered.length <= 12;
     },
   },
 };
@@ -64,11 +82,10 @@ $item-height: 40px;
   #root {
     flex-direction: column;
     place-content: flex-start;
-    overflow-x: auto;
     max-height: 5 * $item-height;
 
     &.narrow {
-      max-height: $item-height;
+      max-height: 1.5 * $item-height;
     }
   }
 }

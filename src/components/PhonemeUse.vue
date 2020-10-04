@@ -1,24 +1,28 @@
 <template>
   <div class="panel card">
     <div class="title">
-      <h3>{{lect}}</h3>
-      <p v-html="graphemes"></p>
+      <h3>{{ lect }}</h3>
+      <p v-html="header"></p>
     </div>
-    <div class="panel-solid scroll">
-      <template v-for="(c, j) in cases">
-        <button
-          class="small panel-horizontal"
-          @click="$emit('play', s[0])"
-          :key="j*10+i"
-          v-for="(s, i) in c.samples"
-        >
-          <span v-if="s[0][0]!='*'" class="icon-small">play_arrow</span>
-          <span class="text" v-html="highlight(s[0], c.grapheme, s[2])"></span>
-          <span class="text-ipa" v-if="s[1]" v-html="highlight(s[1], phoneme)"></span>
-        </button>
-      </template>
+    <div class="panel-solid">
+      <button
+        class="small panel-horizontal"
+        @click="play(i)"
+        :key="i"
+        v-for="(s, i) in fullSamples"
+      >
+        <span class="icon-small">{{
+          canPlay[i] ? "play_arrow" : "arrow_right"
+        }}</span>
+        <span class="text" v-html="highlight(s.word, s.grapheme)"></span>
+        <span
+          class="text-ipa"
+          v-if="s.ipa"
+          v-html="highlight(s.ipa, use.phoneme)"
+        ></span>
+      </button>
     </div>
-    <PhoneticNote :key="i" v-for="(n, i) in notes" :text="n" />
+    <PhoneticNote :key="i" v-for="(n, i) in use.notes" :text="n" />
   </div>
 </template>
 
@@ -28,30 +32,48 @@ import PhoneticNote from "./PhoneticNote";
 export default {
   name: "PhonemeUse",
   components: { PhoneticNote },
-  props: ["phoneme", "lect", "cases"],
+  props: ["lect", "use"],
+  data() {
+    return {
+      canPlay: [],
+    };
+  },
   computed: {
-    graphemes() {
-      return this.cases
-        .map((u) => `<b>${u.grapheme}</b>`)
+    root() {
+      return this.$store.state.root + this.lect + "/audio/";
+    },
+    fullSamples() {
+      return this.use.samples.filter((s) => s.word || s.ipa);
+    },
+    urls() {
+      return this.fullSamples.map((s) => this.root + s.word + ".mp3");
+    },
+    header() {
+      return [...new Set(this.use.samples.map((s) => s.grapheme))]
+        .map((g) => `<b>${g}</b>`)
         .join("<span class='text-dot'></span>");
     },
-    notes() {
-      return this.cases.map((u) => u.note).filter((n) => n);
+  },
+  watch: {
+    urls() {
+      this.canPlay = [];
+      this.urls
+        .map((u) => fetch(u, { method: "HEAD" }))
+        .forEach((b) => b.then((r) => this.canPlay.push(r.ok)));
     },
   },
   methods: {
-    highlight(sample, grapheme, indexes) {
-      if (sample[0] == "*") sample = sample.substr(1);
-      const regex = new RegExp(grapheme, "g");
-      const match = `<span style="color: var(--color-highlight)">${grapheme}</span>`;
-
-      if (indexes) {
-        let i = 0;
-        return sample.replace(regex, function (m) {
-          return indexes.includes(i++) ? match : m;
-        });
-      }
-      return sample.replace(regex, match);
+    color(s) {
+      return `<span style='color: var(--color-highlight)'>${s}</span>`;
+    },
+    highlight(word, grap) {
+      if (!word) return null;
+      return word.includes("*")
+        ? word.replace(/\*([^*]+)\*/g, this.color("$1"))
+        : word.replace(new RegExp(grap, "g"), this.color(grap));
+    },
+    play(i) {
+      if (this.canPlay[i]) this.$emit("play", this.urls[i]);
     },
   },
 };
@@ -67,7 +89,6 @@ export default {
   margin-left: $margin;
   margin-right: $margin;
   border-radius: 0;
-  max-height: 3 * map-get($button-height, "normal");
   &:last-child {
     margin-bottom: $margin;
     border-radius: 0 0 $border-radius $border-radius;
